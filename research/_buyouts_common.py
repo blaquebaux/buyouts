@@ -87,17 +87,17 @@ def jensens_alpha(r, rb, rf=0.0):
     return dict(alpha_ann=alpha_d * 252.0, beta=beta)
 
 def m_squared(r, rb, rf=0.0):
-    """Modigliani M^2 (annualized, in RETURN units): what the book would return if levered/de-levered to
-    the benchmark's volatility -> directly comparable to the benchmark's return. m2_excess = M2 - Rb_ann."""
+    """Modigliani M^2 (annualized, RETURN units): the book levered/de-levered to the benchmark's vol.
+    m2_ann = rf + Sharpe_p * sigma_bench.  m2_excess = M^2-alpha = (Sharpe_p - Sharpe_bench) * sigma_bench
+    — the Sharpe-DIFFERENCE form, so the benchmark vs itself is exactly 0 (no arithmetic/geometric offset)."""
     r = np.asarray(r, float); rb = np.asarray(rb, float)
     r = r[np.isfinite(r)]; rb = rb[np.isfinite(rb)]
-    if len(r) < 30 or r.std() == 0 or len(rb) < 30: return dict(m2_ann=float('nan'), m2_excess=float('nan'))
+    if len(r) < 30 or r.std() == 0 or rb.std() == 0 or len(rb) < 30: return dict(m2_ann=float('nan'), m2_excess=float('nan'))
     rf_d = rf / 252.0
-    sharpe_ann = (r.mean() - rf_d) / r.std() * math.sqrt(252)
+    sh_p = (r.mean() - rf_d) / r.std() * math.sqrt(252)
+    sh_b = (rb.mean() - rf_d) / rb.std() * math.sqrt(252)
     sig_b_ann = rb.std() * math.sqrt(252)
-    rb_ann = (1 + rb.mean())**252 - 1
-    m2 = rf + sharpe_ann * sig_b_ann
-    return dict(m2_ann=m2, m2_excess=m2 - rb_ann)
+    return dict(m2_ann=rf + sh_p * sig_b_ann, m2_excess=(sh_p - sh_b) * sig_b_ann)
 
 def riskadj(r, rb, rf=0.0):
     """One-call bundle: Sharpe/CAGR/DD/vol (from stats) + JB normality + Jensen's alpha + M^2, all vs a

@@ -105,4 +105,21 @@ def riskadj(r, rb, rf=0.0):
     out = dict(stats(r)); out.update(jarque_bera(r))
     out.update(jensens_alpha(r, rb, rf)); out.update(m_squared(r, rb, rf))
     return out
+
+def portable_alpha(alpha, beta, rf=0.0, w=1.0):
+    """Evaluate an alpha stream PORTED onto a beta stream (beta + w*alpha) — the portable-alpha construction.
+    Returns the ported riskadj vs beta, plus full and CRISIS correlation (beta's worst-5% days — the 2008
+    tell). A viable portable-alpha ingredient CLEARS the hurdle (Jensen alpha > 0 AND M2 excess > 0 vs beta)
+    with a low crisis correlation; a hedge with negative carry fails it even if full-sample it looks diversifying."""
+    import numpy as _np
+    alpha = _np.asarray(alpha, float); beta = _np.asarray(beta, float)
+    m = _np.isfinite(alpha) & _np.isfinite(beta); alpha, beta = alpha[m], beta[m]
+    if len(beta) < 30: return dict(clears=None)
+    ported = beta + w * alpha
+    crash = beta <= _np.percentile(beta, 5)
+    out = dict(riskadj(ported, beta, rf))
+    out["fullcorr"] = float(_np.corrcoef(alpha, beta)[0, 1])
+    out["crisiscorr"] = float(_np.corrcoef(alpha[crash], beta[crash])[0, 1]) if crash.sum() > 2 else float("nan")
+    out["clears"] = bool(out["alpha_ann"] > 0 and out["m2_excess"] > 0)
+    return out
 # --------------------------------------------------------------------------------------------------
